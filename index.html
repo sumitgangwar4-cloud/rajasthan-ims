@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rajasthan Health IMS</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+  body { background: #f0f4f8; min-height: 100vh; }
+
+  /* LOGIN */
+  #loginScreen { display:flex; align-items:center; justify-content:center; min-height:100vh; background:linear-gradient(135deg,#0d6e6e,#1a91a1); }
+  .login-box { background:#fff; border-radius:16px; padding:40px; width:380px; box-shadow:0 20px 60px rgba(0,0,0,0.2); }
+  .login-box h1 { color:#0d6e6e; font-size:22px; margin-bottom:6px; text-align:center; }
+  .login-box p { color:#888; font-size:13px; text-align:center; margin-bottom:28px; }
+  .form-group { margin-bottom:16px; }
+  .form-group label { display:block; font-size:13px; font-weight:600; color:#444; margin-bottom:6px; }
+  .form-group input, .form-group select { width:100%; padding:11px 14px; border:1.5px solid #ddd; border-radius:8px; font-size:14px; outline:none; transition:border-color .2s; }
+  .form-group input:focus, .form-group select:focus { border-color:#0d6e6e; }
+  .btn-primary { width:100%; padding:13px; background:linear-gradient(135deg,#0d6e6e,#1a91a1); color:#fff; border:none; border-radius:8px; font-size:15px; font-weight:600; cursor:pointer; }
+  .btn-primary:hover { opacity:.9; }
+  .login-error { background:#fee2e2; color:#b91c1c; padding:10px; border-radius:8px; font-size:13px; margin-bottom:12px; display:none; }
+
+  /* APP */
+  #appScreen { display:none; }
+  .header { background:linear-gradient(135deg,#0d6e6e,#1a91a1); padding:0 24px; display:flex; align-items:center; justify-content:space-between; height:60px; }
+  .header h1 { color:#fff; font-size:18px; font-weight:700; }
+  .header .user-info { display:flex; align-items:center; gap:12px; color:#fff; font-size:13px; }
+  .header .user-badge { background:rgba(255,255,255,0.2); padding:4px 12px; border-radius:20px; font-size:12px; }
+  .btn-logout { background:rgba(255,255,255,0.2); border:none; color:#fff; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px; }
+
+  .tabs { background:#fff; border-bottom:2px solid #e2e8f0; display:flex; gap:0; padding:0 24px; }
+  .tab { padding:14px 20px; cursor:pointer; font-size:14px; font-weight:500; color:#666; border-bottom:3px solid transparent; transition:all .2s; }
+  .tab.active { color:#0d6e6e; border-bottom-color:#0d6e6e; font-weight:700; }
+  .tab:hover { color:#0d6e6e; }
+
+  .content { padding:24px; max-width:1400px; margin:0 auto; }
+
+  /* STATS */
+  .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; margin-bottom:24px; }
+  .stat-card { background:#fff; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); border-left:4px solid #0d6e6e; }
+  .stat-card.red { border-left-color:#ef4444; }
+  .stat-card.blue { border-left-color:#3b82f6; }
+  .stat-card.orange { border-left-color:#f97316; }
+  .stat-card.purple { border-left-color:#8b5cf6; }
+  .stat-num { font-size:28px; font-weight:800; color:#1a202c; }
+  .stat-label { font-size:13px; color:#666; margin-top:4px; }
+
+  /* CARDS */
+  .card { background:#fff; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); margin-bottom:20px; }
+  .card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px; }
+  .card-title { font-size:16px; font-weight:700; color:#1a202c; }
+
+  /* BUTTONS */
+  .btn { padding:9px 18px; border:none; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600; display:inline-flex; align-items:center; gap:6px; }
+  .btn-success { background:#0d6e6e; color:#fff; }
+  .btn-success:hover { background:#0a5757; }
+  .btn-danger { background:#ef4444; color:#fff; }
+  .btn-info { background:#3b82f6; color:#fff; }
+  .btn-warning { background:#f97316; color:#fff; }
+  .btn-outline { background:#fff; border:1.5px solid #0d6e6e; color:#0d6e6e; }
+  .btn-sm { padding:5px 12px; font-size:12px; }
+
+  /* TABLE */
+  .tbl-wrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { background:#f8fafc; padding:12px 14px; text-align:left; font-weight:600; color:#475569; border-bottom:2px solid #e2e8f0; white-space:nowrap; }
+  td { padding:11px 14px; border-bottom:1px solid #f1f5f9; color:#334155; }
+  tr:hover td { background:#f8fafc; }
+
+  /* BADGES */
+  .badge { padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
+  .badge-pending { background:#fef3c7; color:#92400e; }
+  .badge-approved { background:#d1fae5; color:#065f46; }
+  .badge-dispatched { background:#dbeafe; color:#1e40af; }
+  .badge-delivered { background:#dcfce7; color:#166534; }
+  .badge-rejected { background:#fee2e2; color:#991b1b; }
+  .badge-it { background:#e0e7ff; color:#3730a3; }
+  .badge-medical { background:#fce7f3; color:#9d174d; }
+  .badge-low { background:#fee2e2; color:#991b1b; }
+  .badge-ok { background:#d1fae5; color:#065f46; }
+
+  /* FORMS */
+  .filters { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+  .filters input, .filters select { padding:8px 12px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:13px; outline:none; }
+  .filters input:focus, .filters select:focus { border-color:#0d6e6e; }
+
+  /* MODAL */
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1000; align-items:center; justify-content:center; padding:16px; }
+  .modal-overlay.show { display:flex; }
+  .modal { background:#fff; border-radius:16px; width:100%; max-width:640px; max-height:90vh; overflow-y:auto; box-shadow:0 25px 80px rgba(0,0,0,0.3); }
+  .modal-header { background:linear-gradient(135deg,#0d6e6e,#1a91a1); padding:20px 24px; display:flex; justify-content:space-between; align-items:center; border-radius:16px 16px 0 0; position:sticky; top:0; }
+  .modal-header h2 { color:#fff; font-size:17px; font-weight:700; }
+  .modal-close { background:rgba(255,255,255,0.2); border:none; color:#fff; width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; }
+  .modal-body { padding:24px; }
+  .modal-footer { padding:16px 24px; border-top:1px solid #e2e8f0; display:flex; gap:10px; justify-content:flex-end; }
+  .form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+  .form-row.single { grid-template-columns:1fr; }
+  .field label { display:block; font-size:12px; font-weight:600; color:#475569; margin-bottom:5px; }
+  .field input, .field select, .field textarea { width:100%; padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:13px; outline:none; }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color:#0d6e6e; }
+  .field textarea { resize:vertical; min-height:80px; }
+
+  /* NOTIFICATION */
+  .notif { position:fixed; top:20px; right:20px; z-index:9999; padding:14px 20px; border-radius:10px; color:#fff; font-weight:600; font-size:14px; box-shadow:0 8px 30px rgba(0,0,0,0.2); display:none; transition:all .3s; }
+  .notif.success { background:#059669; }
+  .notif.error { background:#dc2626; }
+  .notif.info { background:#2563eb; }
+
+  /* ORDER ITEMS TABLE */
+  .order-items { border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; margin-top:10px; }
+  .order-items-header { background:#f8fafc; padding:10px 14px; font-size:12px; font-weight:700; color:#475569; display:grid; grid-template-columns:2fr 1fr 1fr 60px; gap:8px; }
+  .order-item-row { padding:10px 14px; display:grid; grid-template-columns:2fr 1fr 1fr 60px; gap:8px; align-items:center; border-top:1px solid #f1f5f9; font-size:13px; }
+
+  /* ACTIVITY LOG */
+  .activity-item { display:flex; gap:14px; padding:12px 0; border-bottom:1px solid #f1f5f9; }
+  .activity-icon { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+  .activity-icon.order { background:#dbeafe; }
+  .activity-icon.inventory { background:#d1fae5; }
+  .activity-icon.location { background:#fce7f3; }
+  .activity-icon.status { background:#fef3c7; }
+  .activity-text { flex:1; }
+  .activity-text strong { font-size:13px; color:#1a202c; }
+  .activity-text p { font-size:12px; color:#64748b; margin-top:2px; }
+  .activity-time { font-size:11px; color:#94a3b8; white-space:nowrap; }
+
+  /* ROLE BADGES */
+  .role-admin { background:#fee2e2; color:#991b1b; }
+  .role-manager { background:#dbeafe; color:#1e40af; }
+  .role-warehouse { background:#d1fae5; color:#065f46; }
+  .role-spoke { background:#fef3c7; color:#92400e; }
+
+  /* TABS inside page */
+  .sub-tabs { display:flex; gap:6px; margin-bottom:16px; }
+  .sub-tab { padding:7px 16px; border-radius:8px; cursor:pointer; font-size:13px; font-weight:500; color:#666; background:#f1f5f9; border:none; }
+  .sub-tab.active { background:#0d6e6e; color:#fff; }
+
+  .section { display:none; }
+  .section.show { display:block; }
+
+  .empty-state { text-align:center; padding:50px 20px; color:#94a3b8; }
+  .empty-state .icon { font-size:48px; margin-bottom:12px; }
+
+  .search-box { position:relative; }
+  .search-box input { padding-left:36px; }
+  .search-box .search-icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8; }
+
+  @media(max-width:640px) {
+    .form-row { grid-template-columns:1fr; }
+    .stats-grid { grid-template-columns:repeat(2,1fr); }
+    .header h1 { font-size:14px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NOTIFICATION -->
+<div id="notif" class="notif"></div>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <h1>🏥 Rajasthan Health IMS</h1>
+    <p>Inventory Management System</p>
+    <div id="loginError" class="login-error"></div>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="loginUser" placeholder="Enter username" />
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="loginPass" placeholder="Enter password" autocomplete="current-password" />
+    </div>
+    <button class="btn-primary" onclick="doLogin()">Login</button>
+    <p style="margin-top:14px;font-size:12px;text-align:center"><a href="#" onclick="toggleCreds()" style="color:#0d6e6e;text-decoration:none">Show demo credentials</a></p>
+    <div id="credBox" style="display:none;margin-top:10px;background:#f0fdf4;border-radius:8px;padding:12px;font-size:12px;color:#065f46;line-height:1.8">
+      <strong>Admin:</strong> admin / admin123<br>
+      <strong>Warehouse:</strong> warehouse / wh123<br>
+      <strong>State Manager:</strong> manager / mgr123<br>
+      <strong>Spoke:</strong> spoke1 / spk123
+    </div>
+    
+  </div>
+</div>
+
+<!-- APP SCREEN -->
+<div id="appScreen">
+  <div class="header">
+    <h1>🏥 Rajasthan Health IMS</h1>
+    <div class="user-info">
+      <span id="headerUser">Admin</span>
+      <span id="headerRole" class="user-badge">admin</span>
+      <button class="btn-logout" onclick="doLogout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="tabs" id="mainTabs">
+    <div class="tab active" onclick="switchTab('dashboard')" id="tab-dashboard">📊 Dashboard</div>
+    <div class="tab" onclick="switchTab('orders')" id="tab-orders">🛒 Orders</div>
+    <div class="tab" onclick="switchTab('inventory')" id="tab-inventory">📦 Inventory</div>
+    <div class="tab" onclick="switchTab('locations')" id="tab-locations">📍 Locations</div>
+    <div class="tab" onclick="switchTab('activity')" id="tab-activity">📋 Activity Log</div>
+    <div class="tab" id="tab-users" onclick="switchTab('users')" style="display:none">👥 Users</div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD TAB -->
+    <div class="section show" id="sec-dashboard">
+      <div class="stats-grid" id="statsGrid"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div class="card">
+          <div class="card-header"><span class="card-title">⚠️ Low Stock Items</span></div>
+          <div id="lowStockList"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">📋 Recent Orders</span></div>
+          <div id="recentOrdersList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ORDERS TAB -->
+    <div class="section" id="sec-orders">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🛒 Order Management</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-success" id="btnCreateOrder" onclick="openOrderModal()">+ Create Order</button>
+            <button class="btn btn-outline" onclick="exportOrdersCSV()">⬇ Export CSV</button>
+          </div>
+        </div>
+        <div class="filters">
+          <input type="text" id="orderSearch" placeholder="🔍 Search orders..." oninput="renderOrders()" style="min-width:200px">
+          <select id="orderStatusFilter" onchange="renderOrders()">
+            <option value="">All Status</option>
+            <option>raised</option><option>approved</option><option>dispatched</option><option>delivered</option><option>rejected</option>
+          </select>
+          <select id="orderCatFilter" onchange="renderOrders()">
+            <option value="">All Categories</option>
+            <option>IT</option><option>Medical</option>
+          </select>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr>
+              <th>Order ID</th><th>Location</th><th>RJ Code</th><th>Category</th>
+              <th>Items</th><th>Total Qty</th><th>Status</th><th>Created</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="ordersBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- INVENTORY TAB -->
+    <div class="section" id="sec-inventory">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">📦 Inventory</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-success" id="btnAddItem" onclick="openItemModal()">+ Add Item</button>
+            <label class="btn btn-info" style="cursor:pointer">⬆ Import Excel/CSV<input type="file" accept=".xlsx,.xls,.csv" onchange="importFile(this,'inventory')" style="display:none"></label>
+            <button class="btn btn-outline" onclick="exportInvCSV()">⬇ Export CSV</button>
+          </div>
+        </div>
+        <div class="filters">
+          <input type="text" id="invSearch" placeholder="🔍 Search inventory..." oninput="renderInventory()" style="min-width:200px">
+          <select id="invCatFilter" onchange="renderInventory()">
+            <option value="">All Categories</option>
+            <option>IT</option><option>Medical</option>
+          </select>
+          <select id="invStockFilter" onchange="renderInventory()">
+            <option value="">All Stock Levels</option>
+            <option value="low">Low Stock</option>
+            <option value="ok">Normal Stock</option>
+          </select>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr>
+              <th>SKU ID</th><th>Item Name</th><th>Category</th><th>Sub Category</th>
+              <th>Unit</th><th>Opening Stock</th><th>Current Stock</th><th>Reorder Level</th><th>Status</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="inventoryBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOCATIONS TAB -->
+    <div class="section" id="sec-locations">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">📍 Locations</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-success" onclick="openLocModal()">+ Add Location</button>
+            <label class="btn btn-info" style="cursor:pointer">⬆ Import Excel/CSV<input type="file" accept=".xlsx,.xls,.csv" onchange="importFile(this,'locations')" style="display:none"></label>
+            <button class="btn btn-outline" onclick="exportLocCSV()">⬇ Export CSV</button>
+          </div>
+        </div>
+        <div class="filters">
+          <input type="text" id="locSearch" placeholder="🔍 Search locations..." oninput="renderLocations()" style="min-width:200px">
+          <select id="locZoneFilter" onchange="renderLocations()">
+            <option value="">All Zones</option>
+          </select>
+          <select id="locCatFilter" onchange="renderLocations()">
+            <option value="">All Categories</option>
+            <option>PHC</option><option>CHC</option><option>Hospital</option><option>Warehouse</option>
+          </select>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr>
+              <th>RJ Code</th><th>Location Name</th><th>Category</th><th>Zone</th><th>City</th><th>Address</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="locationsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACTIVITY LOG TAB -->
+    <div class="section" id="sec-activity">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">📋 Activity Log</span>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-outline" onclick="exportActivityCSV()">⬇ Export CSV</button>
+          </div>
+        </div>
+        <div class="filters">
+          <select id="actTypeFilter" onchange="renderActivity()">
+            <option value="">All Types</option>
+            <option>order</option><option>inventory</option><option>location</option><option>status</option><option>auth</option>
+          </select>
+          <input type="date" id="actDateFilter" onchange="renderActivity()">
+        </div>
+        <div id="activityList"></div>
+      </div>
+    </div>
+
+    <!-- USERS TAB -->
+    <div class="section" id="sec-users">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">👥 User Management</span>
+          <button class="btn btn-success" onclick="openUserModal()">+ Add User</button>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Username</th><th>Display Name</th><th>Role</th><th>Location</th><th>Actions</th></tr></thead>
+            <tbody id="usersBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ORDER MODAL -->
+<div class="modal-overlay" id="orderModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="orderModalTitle">Create New Order</h2>
+      <button class="modal-close" onclick="closeModal('orderModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="field">
+          <label>RJ Code *</label>
+          <select id="orderRjCode" onchange="fillLocationFromCode()">
+            <option value="">Select RJ Code</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Location Name</label>
+          <input type="text" id="orderLocName" readonly placeholder="Auto-filled">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Category *</label>
+          <select id="orderCategory" onchange="loadOrderItems()">
+            <option value="">Select Category</option>
+            <option>IT</option>
+            <option>Medical</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Required By Date</label>
+          <input type="date" id="orderReqDate">
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:14px">
+        <label>Remarks</label>
+        <textarea id="orderRemarks" placeholder="Optional remarks or special instructions"></textarea>
+      </div>
+      <div id="orderItemsSection" style="display:none">
+        <label style="font-size:12px;font-weight:700;color:#475569;margin-bottom:8px;display:block">SELECT ITEMS & QUANTITY</label>
+        <div id="orderItemsList"></div>
+      </div>
+      <div id="orderSummary" style="display:none;margin-top:14px;padding:12px;background:#f0fdf4;border-radius:8px;font-size:13px;color:#065f46;font-weight:600;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('orderModal')">Cancel</button>
+      <button class="btn btn-success" onclick="submitOrder()" id="btnSubmitOrder">Submit Order</button>
+    </div>
+  </div>
+</div>
+
+<!-- ORDER VIEW MODAL -->
+<div class="modal-overlay" id="orderViewModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Order Details</h2>
+      <button class="modal-close" onclick="closeModal('orderViewModal')">×</button>
+    </div>
+    <div class="modal-body" id="orderViewBody"></div>
+    <div class="modal-footer" id="orderViewFooter"></div>
+  </div>
+</div>
+
+<!-- ITEM MODAL -->
+<div class="modal-overlay" id="itemModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Add Inventory Item</h2>
+      <button class="modal-close" onclick="closeModal('itemModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="field"><label>SKU ID *</label><input type="text" id="itemSku" placeholder="e.g. IT006"></div>
+        <div class="field"><label>Item Name *</label><input type="text" id="itemName" placeholder="e.g. Laptop"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Category *</label>
+          <select id="itemCat"><option>IT</option><option>Medical</option></select>
+        </div>
+        <div class="field"><label>Sub Category</label><input type="text" id="itemSubCat" placeholder="e.g. Hardware"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Type</label><input type="text" id="itemType" placeholder="e.g. Asset"></div>
+        <div class="field"><label>Unit</label><input type="text" id="itemUnit" placeholder="e.g. Nos"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Opening Stock</label><input type="number" id="itemOpening" value="0" min="0"></div>
+        <div class="field"><label>Current Stock</label><input type="number" id="itemCurrent" value="0" min="0"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Reorder Level</label><input type="number" id="itemReorder" value="0" min="0"></div>
+        <div class="field"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('itemModal')">Cancel</button>
+      <button class="btn btn-success" onclick="saveItem()">Save Item</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOCATION MODAL -->
+<div class="modal-overlay" id="locModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Add Location</h2>
+      <button class="modal-close" onclick="closeModal('locModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="field"><label>RJ Code *</label><input type="text" id="locRjCode" placeholder="e.g. AJ001"></div>
+        <div class="field"><label>Location Name *</label><input type="text" id="locName" placeholder="e.g. Government Hospital"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Category</label>
+          <select id="locCat"><option>PHC</option><option>CHC</option><option>Hospital</option><option>Warehouse</option><option>Other</option></select>
+        </div>
+        <div class="field"><label>Zone</label><input type="text" id="locZone" placeholder="e.g. Central"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>City</label><input type="text" id="locCity" placeholder="e.g. Ajmer"></div>
+        <div class="field"><label>Address</label><input type="text" id="locAddress" placeholder="Full address"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('locModal')">Cancel</button>
+      <button class="btn btn-success" onclick="saveLocation()">Save Location</button>
+    </div>
+  </div>
+</div>
+
+<!-- USER MODAL -->
+<div class="modal-overlay" id="userModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h2>Add User</h2>
+      <button class="modal-close" onclick="closeModal('userModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="field"><label>Username *</label><input type="text" id="uUsername" placeholder="e.g. spoke_ajmer"></div>
+        <div class="field"><label>Display Name *</label><input type="text" id="uDisplayName" placeholder="e.g. Ajmer PHC"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Password *</label><input type="password" id="uPassword" placeholder="Min 6 characters"></div>
+        <div class="field"><label>Role *</label>
+          <select id="uRole" onchange="toggleUserLocationField()">
+            <option value="admin">Admin</option>
+            <option value="warehouse">Warehouse Manager</option>
+            <option value="manager">State Manager</option>
+            <option value="spoke">Spoke/PHC User</option>
+          </select>
+        </div>
+      </div>
+      <div class="field" id="uLocationField" style="display:none;margin-bottom:14px">
+        <label>Assigned Location (RJ Code)</label>
+        <select id="uLocation"><option value="">Select Location</option></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('userModal')">Cancel</button>
+      <button class="btn btn-success" onclick="saveUser()">Save User</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT PREVIEW MODAL -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal" style="max-width:700px">
+    <div class="modal-header">
+      <h2 id="importTitle">Preview Import</h2>
+      <button class="modal-close" onclick="closeModal('importModal')">×</button>
+    </div>
+    <div class="modal-body" id="importBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('importModal')">Cancel</button>
+      <button class="btn btn-success" onclick="confirmImport()">Confirm Import</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleCreds(){ const c=document.getElementById("credBox"); c.style.display=c.style.display==="none"?"block":"none"; }
+// ─── FIREBASE CONFIG ───────────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyBEtXjOjFL2VQrRYNKyOjGadT2P5fZjUv8",
+  authDomain: "inventory-management-system-rj.firebaseapp.com",
+  databaseURL: "https://inventory-management-system-rj-default-rtdb.firebaseio.com",
+  projectId: "inventory-management-system-rj",
+  storageBucket: "inventory-management-system-rj.firebasestorage.app",
+  messagingSenderId: "958550696108",
+  appId: "1:958550696108:web:58dcb84501b9b266013f09",
+  measurementId: "G-6GMWST2LGE"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ─── DEFAULT USERS ─────────────────────────────────────────────────────────────
+const DEFAULT_USERS = {
+  admin:    { password:"admin123",  role:"admin",     name:"Administrator",     locationId:"" },
+  manager:  { password:"mgr123",    role:"manager",   name:"State Manager",     locationId:"" },
+  warehouse:{ password:"wh123",     role:"warehouse", name:"Warehouse Manager", locationId:"" },
+  spoke1:   { password:"spk123",    role:"spoke",     name:"Ajmer PHC Spoke",   locationId:"AJ001" }
+};
+
+// ─── SAMPLE DATA ───────────────────────────────────────────────────────────────
+const SAMPLE_INVENTORY = [
+  { skuId:"IT001", name:"Desktop Computer", category:"IT", subCategory:"Hardware", type:"Asset", unit:"Nos", reorderLevel:30, openingStock:500, currentStock:380, available:380 },
+  { skuId:"IT002", name:"Printer",          category:"IT", subCategory:"Hardware", type:"Asset", unit:"Nos", reorderLevel:20, openingStock:300, currentStock:195, available:195 },
+  { skuId:"IT003", name:"UPS",              category:"IT", subCategory:"Hardware", type:"Asset", unit:"Nos", reorderLevel:35, openingStock:450, currentStock:40,  available:40  },
+  { skuId:"IT004", name:"Keyboard & Mouse", category:"IT", subCategory:"Peripheral",type:"Consumable",unit:"Set",reorderLevel:40,openingStock:400,currentStock:280,available:280},
+  { skuId:"IT005", name:"Monitor",          category:"IT", subCategory:"Hardware", type:"Asset", unit:"Nos", reorderLevel:50, openingStock:600, currentStock:410, available:410 },
+  { skuId:"MED001", name:"Paracetamol 500mg", category:"Medical", subCategory:"Tablets", type:"Medicine", unit:"Strips", reorderLevel:500, openingStock:5000, currentStock:3200, available:3200 },
+  { skuId:"MED002", name:"ORS Sachet",        category:"Medical", subCategory:"Sachets",  type:"Medicine", unit:"Pcs",    reorderLevel:300, openingStock:3000, currentStock:1800, available:1800 },
+  { skuId:"MED003", name:"Gloves (Box)",      category:"Medical", subCategory:"PPE",       type:"Consumable",unit:"Box",  reorderLevel:100, openingStock:1000, currentStock:95,   available:95   },
+  { skuId:"MED004", name:"Surgical Mask",     category:"Medical", subCategory:"PPE",       type:"Consumable",unit:"Box",  reorderLevel:150, openingStock:2000, currentStock:420,  available:420  },
+  { skuId:"MED005", name:"Injection Syringe", category:"Medical", subCategory:"Syringes",  type:"Consumable",unit:"Box",  reorderLevel:200, openingStock:2500, currentStock:1100, available:1100 }
+];
+
+const SAMPLE_LOCATIONS = [
+  { id:"L001", rjCode:"AJ001", name:"Government Hospital Ajmer",    category:"Hospital",  zone:"Central", city:"Ajmer",     address:"Civil Lines, Ajmer" },
+  { id:"L002", rjCode:"AJ002", name:"Ajmer PHC Pushkar",            category:"PHC",       zone:"Central", city:"Ajmer",     address:"Pushkar Road, Ajmer" },
+  { id:"L003", rjCode:"JP001", name:"SMS Medical College",          category:"Hospital",  zone:"East",    city:"Jaipur",    address:"JLN Marg, Jaipur" },
+  { id:"L004", rjCode:"JP002", name:"Jaipur CHC Sanganer",          category:"CHC",       zone:"East",    city:"Jaipur",    address:"Sanganer, Jaipur" },
+  { id:"L005", rjCode:"UD001", name:"MB Government Hospital Udaipur",category:"Hospital", zone:"South",   city:"Udaipur",   address:"Udaipur City" },
+  { id:"L006", rjCode:"JO001", name:"Jodhpur PHC Mandore",          category:"PHC",       zone:"West",    city:"Jodhpur",   address:"Mandore Road, Jodhpur" },
+  { id:"L007", rjCode:"BK001", name:"Bikaner CHC Rani Bazar",       category:"CHC",       zone:"North",   city:"Bikaner",   address:"Rani Bazar, Bikaner" }
+];
+
+// ─── STATE ─────────────────────────────────────────────────────────────────────
+let currentUser = null;
+let appData = { inventory:[], locations:[], orders:[], users:{...DEFAULT_USERS}, activity:[] };
+let importBuffer = { type:"", data:[] };
+
+// ─── FIREBASE HELPERS ──────────────────────────────────────────────────────────
+function fbRef(path){ return db.ref(path); }
+
+function fbSet(path, val){ return fbRef(path).set(val); }
+
+function fbGet(path){ return fbRef(path).once("value").then(s => s.val()); }
+
+function fbPush(path, val){ return fbRef(path).push(val); }
+
+async function loadAllData(){
+  const [inv, locs, orders, users, activity] = await Promise.all([
+    fbGet("inventory"), fbGet("locations"), fbGet("orders"),
+    fbGet("users"), fbGet("activity")
+  ]);
+  appData.inventory  = inv     ? Object.values(inv)     : [];
+  appData.locations  = locs    ? Object.values(locs)    : [];
+  appData.orders     = orders  ? Object.values(orders)  : [];
+  appData.users      = users   ? users                  : {...DEFAULT_USERS};
+  appData.activity   = activity? Object.values(activity): [];
+
+  if(!appData.inventory.length){
+    await fbSet("inventory", Object.fromEntries(SAMPLE_INVENTORY.map((x,i)=>[`item${i}`,x])));
+    appData.inventory = SAMPLE_INVENTORY;
+  }
+  if(!appData.locations.length){
+    await fbSet("locations", Object.fromEntries(SAMPLE_LOCATIONS.map((x,i)=>[`loc${i}`,x])));
+    appData.locations = SAMPLE_LOCATIONS;
+  }
+  if(!Object.keys(appData.users).length){
+    await fbSet("users", DEFAULT_USERS);
+    appData.users = DEFAULT_USERS;
+  }
+}
+
+// ─── AUTH ──────────────────────────────────────────────────────────────────────
+async function doLogin(){
+  const u = document.getElementById("loginUser").value.trim();
+  const p = document.getElementById("loginPass").value.trim();
+  const errEl = document.getElementById("loginError");
+  errEl.style.display="none";
+  if(!u||!p){ errEl.textContent="Please enter username and password."; errEl.style.display="block"; return; }
+
+  const btn = document.querySelector(".btn-primary");
+  btn.textContent = "Logging in..."; btn.disabled = true;
+  showNotif("Connecting to database...","info");
+
+  try {
+    // First check default users (works offline too)
+    let users = {...DEFAULT_USERS};
+    try {
+      await loadAllData();
+      users = appData.users && Object.keys(appData.users).length ? appData.users : DEFAULT_USERS;
+    } catch(dbErr) {
+      console.warn("DB load failed, using defaults:", dbErr);
+      appData.inventory = SAMPLE_INVENTORY;
+      appData.locations = SAMPLE_LOCATIONS;
+      appData.orders = [];
+      appData.activity = [];
+    }
+
+    if(!users[u]){ 
+      errEl.textContent="Invalid username. Please check and try again."; 
+      errEl.style.display="block"; hideNotif(); 
+      btn.textContent="Login"; btn.disabled=false;
+      return; 
+    }
+    if(users[u].password !== p){ 
+      errEl.textContent="Incorrect password. Please try again."; 
+      errEl.style.display="block"; hideNotif(); 
+      btn.textContent="Login"; btn.disabled=false;
+      return; 
+    }
+
+    currentUser = { username:u, ...users[u] };
+    document.getElementById("loginScreen").style.display="none";
+    document.getElementById("appScreen").style.display="block";
+    document.getElementById("headerUser").textContent = currentUser.name;
+    document.getElementById("headerRole").textContent = currentUser.role.toUpperCase();
+    setupTabsForRole();
+    renderAll();
+    showNotif("Welcome, " + currentUser.name + "!", "success");
+    try { 
+      logActivity("auth", currentUser.name + " logged in", "🔐"); 
+      listenRealtime(); 
+    } catch(e){}
+    btn.textContent="Login"; btn.disabled=false;
+  } catch(e){ 
+    errEl.textContent="Error: "+e.message; 
+    errEl.style.display="block"; 
+    hideNotif(); 
+    btn.textContent="Login"; btn.disabled=false;
+  }
+}
+
+function doLogout(){
+  logActivity("auth", `${currentUser.name} logged out`, "🔓");
+  currentUser=null;
+  document.getElementById("loginScreen").style.display="flex";
+  document.getElementById("appScreen").style.display="none";
+  document.getElementById("loginUser").value="";
+  document.getElementById("loginPass").value="";
+}
+
+function setupTabsForRole(){
+  const role = currentUser.role;
+  const usersTab = document.getElementById("tab-users");
+  if(role==="admin") usersTab.style.display="";
+  else usersTab.style.display="none";
+
+  const btnCreate = document.getElementById("btnCreateOrder");
+  const btnAddItem = document.getElementById("btnAddItem");
+  if(role==="spoke"){
+    if(btnCreate) btnCreate.textContent="+ Raise Demand";
+  }
+  if(role==="spoke"||role==="manager"){
+    if(btnAddItem) btnAddItem.style.display="none";
+  }
+}
+
+function listenRealtime(){
+  db.ref("inventory").on("value", snap => {
+    const v = snap.val();
+    if(v){ appData.inventory=Object.values(v); renderInventory(); renderDashboard(); }
+  });
+  db.ref("orders").on("value", snap => {
+    const v = snap.val();
+    if(v){ appData.orders=Object.values(v); renderOrders(); renderDashboard(); }
+  });
+  db.ref("locations").on("value", snap => {
+    const v = snap.val();
+    if(v){ appData.locations=Object.values(v); renderLocations(); }
+  });
+  db.ref("activity").on("value", snap => {
+    const v = snap.val();
+    if(v){ appData.activity=Object.values(v); renderActivity(); }
+  });
+}
+
+// ─── TABS ──────────────────────────────────────────────────────────────────────
+function switchTab(name){
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  document.querySelectorAll(".section").forEach(s=>s.classList.remove("show"));
+  document.getElementById("tab-"+name).classList.add("active");
+  document.getElementById("sec-"+name).classList.add("show");
+}
+
+// ─── NOTIFICATIONS ─────────────────────────────────────────────────────────────
+function showNotif(msg, type="success"){
+  const el=document.getElementById("notif");
+  el.textContent=msg; el.className="notif "+type; el.style.display="block";
+  setTimeout(()=>hideNotif(),3500);
+}
+function hideNotif(){ document.getElementById("notif").style.display="none"; }
+
+// ─── ACTIVITY LOG ──────────────────────────────────────────────────────────────
+async function logActivity(type, message, icon="📝"){
+  const entry = {
+    type, message, icon,
+    user: currentUser?.name || "System",
+    role: currentUser?.role || "",
+    ts: new Date().toISOString()
+  };
+  await fbPush("activity", entry);
+}
+
+// ─── RENDER ALL ────────────────────────────────────────────────────────────────
+function renderAll(){ renderDashboard(); renderOrders(); renderInventory(); renderLocations(); renderActivity(); }
+
+// ─── DASHBOARD ─────────────────────────────────────────────────────────────────
+function renderDashboard(){
+  const inv = appData.inventory;
+  const orders = filterOrdersByRole(appData.orders);
+  const locs = appData.locations;
+  const lowStock = inv.filter(i=>i.currentStock <= i.reorderLevel);
+  const pending = orders.filter(o=>o.status==="raised" || o.status==="pending").length;
+  const dispatched = orders.filter(o=>o.status==="dispatched").length;
+  const totalItems = inv.reduce((s,i)=>s+(i.currentStock||0),0);
+
+  document.getElementById("statsGrid").innerHTML = `
+    <div class="stat-card"><div class="stat-num">${locs.length}</div><div class="stat-label">📍 Total Locations</div></div>
+    <div class="stat-card blue"><div class="stat-num">${inv.length}</div><div class="stat-label">📦 Inventory Items</div></div>
+    <div class="stat-card orange"><div class="stat-num">${orders.length}</div><div class="stat-label">🛒 Total Orders</div></div>
+    <div class="stat-card red"><div class="stat-num">${lowStock.length}</div><div class="stat-label">⚠️ Low Stock Items</div></div>
+    <div class="stat-card purple"><div class="stat-num">${pending}</div><div class="stat-label">⏳ Pending Orders</div></div>
+    <div class="stat-card"><div class="stat-num">${dispatched}</div><div class="stat-label">🚚 In Transit</div></div>
+  `;
+
+  const llEl = document.getElementById("lowStockList");
+  if(!lowStock.length){ llEl.innerHTML=`<div class="empty-state"><div class="icon">✅</div><p>All items are sufficiently stocked</p></div>`; }
+  else {
+    llEl.innerHTML = `<div class="tbl-wrap"><table><thead><tr><th>SKU</th><th>Item</th><th>Current</th><th>Reorder</th></tr></thead><tbody>`+
+      lowStock.slice(0,8).map(i=>`<tr><td>${i.skuId}</td><td>${i.name}</td><td style="color:#ef4444;font-weight:700">${i.currentStock}</td><td>${i.reorderLevel}</td></tr>`).join("")+
+      `</tbody></table></div>`;
+  }
+
+  const roEl = document.getElementById("recentOrdersList");
+  const recent = [...orders].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,6);
+  if(!recent.length){ roEl.innerHTML=`<div class="empty-state"><div class="icon">📋</div><p>No orders yet</p></div>`; }
+  else {
+    roEl.innerHTML=recent.map(o=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f1f5f9">
+        <div><strong style="font-size:13px">${o.id}</strong><br><span style="font-size:11px;color:#64748b">${o.locationName||"—"} · ${o.category}</span></div>
+        <span class="badge badge-${o.status}">${o.status}</span>
+      </div>`).join("");
+  }
+}
+
+// ─── ORDERS ────────────────────────────────────────────────────────────────────
+function filterOrdersByRole(orders){
+  if(!currentUser) return orders;
+  if(currentUser.role==="spoke") return orders.filter(o=>o.locationId===currentUser.locationId);
+  if(currentUser.role==="manager") return orders.filter(o=>o.createdBy===currentUser.username || o.managerId===currentUser.username);
+  return orders;
+}
+
+function renderOrders(){
+  const search = (document.getElementById("orderSearch")?.value||"").toLowerCase();
+  const statusF = document.getElementById("orderStatusFilter")?.value||"";
+  const catF = document.getElementById("orderCatFilter")?.value||"";
+  let orders = filterOrdersByRole(appData.orders);
+  if(search) orders = orders.filter(o=>o.id?.toLowerCase().includes(search)||o.locationName?.toLowerCase().includes(search)||o.rjCode?.toLowerCase().includes(search));
+  if(statusF) orders = orders.filter(o=>o.status===statusF);
+  if(catF) orders = orders.filter(o=>o.category===catF);
+  orders = [...orders].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+
+  const tbody = document.getElementById("ordersBody");
+  if(!orders.length){ tbody.innerHTML=`<tr><td colspan="9"><div class="empty-state"><div class="icon">📋</div><p>No orders found</p></div></td></tr>`; return; }
+
+  tbody.innerHTML = orders.map(o=>{
+    const canAction = currentUser.role==="warehouse"||currentUser.role==="admin";
+    const totalQty = (o.items||[]).reduce((s,i)=>s+(parseInt(i.quantity)||0),0);
+    let actionBtns = `<button class="btn btn-outline btn-sm" onclick='viewOrder("${o.id}")'>View</button> `;
+    if(canAction){
+      if(o.status==="raised"||o.status==="pending"){
+        actionBtns+=`<button class="btn btn-success btn-sm" onclick='changeOrderStatus("${o.id}","approved")'>Approve</button> `;
+        actionBtns+=`<button class="btn btn-danger btn-sm" onclick='rejectOrder("${o.id}")'>Reject</button>`;
+      } else if(o.status==="approved"){
+        actionBtns+=`<button class="btn btn-info btn-sm" onclick='changeOrderStatus("${o.id}","dispatched")'>Dispatch</button>`;
+      } else if(o.status==="dispatched"){
+        actionBtns+=`<button class="btn btn-warning btn-sm" onclick='changeOrderStatus("${o.id}","delivered")'>Delivered</button>`;
+      }
+    }
+    return `<tr>
+      <td><strong>${o.id}</strong></td>
+      <td>${o.locationName||"—"}</td>
+      <td><span class="badge badge-it">${o.rjCode||"—"}</span></td>
+      <td><span class="badge badge-${(o.category||"").toLowerCase()}">${o.category||"—"}</span></td>
+      <td>${(o.items||[]).length} item(s)</td>
+      <td>${totalQty}</td>
+      <td><span class="badge badge-${o.status}">${o.status}</span></td>
+      <td>${o.createdAt ? new Date(o.createdAt).toLocaleDateString("en-IN") : "—"}</td>
+      <td>${actionBtns}</td>
+    </tr>`;
+  }).join("");
+}
+
+async function changeOrderStatus(orderId, newStatus){
+  const idx = appData.orders.findIndex(o=>o.id===orderId);
+  if(idx===-1) return;
+  appData.orders[idx].status = newStatus;
+  appData.orders[idx].updatedAt = new Date().toISOString();
+  appData.orders[idx].updatedBy = currentUser.name;
+  // Deduct stock on delivery
+  if(newStatus==="delivered"){
+    const order = appData.orders[idx];
+    for(const item of (order.items||[])){
+      const invIdx = appData.inventory.findIndex(x=>x.skuId===item.skuId);
+      if(invIdx>=0){
+        const deduct = parseInt(item.quantity)||0;
+        appData.inventory[invIdx].currentStock = Math.max(0,(appData.inventory[invIdx].currentStock||0)-deduct);
+        appData.inventory[invIdx].available = appData.inventory[invIdx].currentStock;
+      }
+    }
+    await fbSet("inventory", Object.fromEntries(appData.inventory.map((x,i)=>[`item${i}`,x])));
+  }
+  await saveOrders();
+  logActivity("status", `Order ${orderId} → ${newStatus} by ${currentUser.name}`, "🔄");
+  renderOrders(); renderDashboard();
+  showNotif(`Order ${orderId} marked as ${newStatus}!`);
+}
+
+async function rejectOrder(orderId){
+  const reason = prompt("Enter rejection reason:");
+  if(!reason) return;
+  const idx = appData.orders.findIndex(o=>o.id===orderId);
+  if(idx===-1) return;
+  appData.orders[idx].status="rejected";
+  appData.orders[idx].rejectionReason=reason;
+  appData.orders[idx].updatedAt=new Date().toISOString();
+  appData.orders[idx].updatedBy=currentUser.name;
+  await saveOrders();
+  logActivity("status", `Order ${orderId} rejected: ${reason}`, "❌");
+  renderOrders(); renderDashboard();
+  showNotif("Order rejected.");
+}
+
+async function saveOrders(){
+  await fbSet("orders", Object.fromEntries(appData.orders.map((x,i)=>[`ord${i}`,x])));
+}
+
+function openOrderModal(){
+  const rjSel = document.getElementById("orderRjCode");
+  rjSel.innerHTML=`<option value="">Select RJ Code</option>`;
+  let locs = appData.locations;
+  if(currentUser.role==="spoke") locs=locs.filter(l=>l.rjCode===currentUser.locationId);
+  locs.forEach(l=>{ const o=document.createElement("option"); o.value=l.rjCode; o.textContent=`${l.rjCode} — ${l.name}`; rjSel.appendChild(o); });
+  if(currentUser.role==="spoke"&&currentUser.locationId){ rjSel.value=currentUser.locationId; fillLocationFromCode(); }
+  document.getElementById("orderCategory").value="";
+  document.getElementById("orderReqDate").value="";
+  document.getElementById("orderRemarks").value="";
+  document.getElementById("orderItemsSection").style.display="none";
+  document.getElementById("orderSummary").style.display="none";
+  document.getElementById("orderModalTitle").textContent = currentUser.role==="spoke"?"Raise Demand Request":"Create New Order";
+  openModal("orderModal");
+}
+
+function fillLocationFromCode(){
+  const code = document.getElementById("orderRjCode").value;
+  const loc = appData.locations.find(l=>l.rjCode===code);
+  document.getElementById("orderLocName").value = loc ? loc.name : "";
+}
+
+function loadOrderItems(){
+  const cat = document.getElementById("orderCategory").value;
+  if(!cat){ document.getElementById("orderItemsSection").style.display="none"; return; }
+  const items = appData.inventory.filter(i=>i.category===cat);
+  const sec = document.getElementById("orderItemsSection");
+  const list = document.getElementById("orderItemsList");
+  if(!items.length){ list.innerHTML=`<p style="color:#94a3b8;font-size:13px">No ${cat} items in inventory.</p>`; sec.style.display="block"; return; }
+  list.innerHTML=`
+    <div class="order-items">
+      <div class="order-items-header"><span>Item</span><span>Available</span><span>Quantity</span><span></span></div>
+      ${items.map(i=>`
+        <div class="order-item-row">
+          <span><strong>${i.skuId}</strong> — ${i.name}</span>
+          <span>${i.available||i.currentStock||0} ${i.unit}</span>
+          <input type="number" min="0" max="${i.available||i.currentStock||9999}" placeholder="0"
+            id="qty_${i.skuId}" oninput="updateOrderSummary()"
+            style="width:80px;padding:6px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:13px">
+          <span style="font-size:11px;color:#94a3b8">${i.unit}</span>
+        </div>`).join("")}
+    </div>`;
+  sec.style.display="block";
+  updateOrderSummary();
+}
+
+function updateOrderSummary(){
+  const cat = document.getElementById("orderCategory").value;
+  const items = appData.inventory.filter(i=>i.category===cat);
+  let selected=0, totalQty=0;
+  items.forEach(i=>{ const v=parseInt(document.getElementById("qty_"+i.skuId)?.value||0); if(v>0){selected++;totalQty+=v;} });
+  const sumEl=document.getElementById("orderSummary");
+  if(selected>0){ sumEl.style.display="block"; sumEl.textContent=`✅ ${selected} item(s) selected · Total quantity: ${totalQty}`; }
+  else { sumEl.style.display="none"; }
+}
+
+async function submitOrder(){
+  const rjCode = document.getElementById("orderRjCode").value;
+  const cat = document.getElementById("orderCategory").value;
+  if(!rjCode){ showNotif("Please select RJ Code","error"); return; }
+  if(!cat){ showNotif("Please select category","error"); return; }
+  const loc = appData.locations.find(l=>l.rjCode===rjCode);
+  const items = appData.inventory.filter(i=>i.category===cat);
+  const selectedItems=[];
+  items.forEach(i=>{ const v=parseInt(document.getElementById("qty_"+i.skuId)?.value||0); if(v>0) selectedItems.push({skuId:i.skuId,name:i.name,quantity:v,unit:i.unit}); });
+  if(!selectedItems.length){ showNotif("Please enter quantity for at least one item","error"); return; }
+  const orderId="ORD"+Date.now();
+  const order={
+    id:orderId, rjCode, locationId:rjCode,
+    locationName:loc?loc.name:rjCode,
+    category:cat,
+    items:selectedItems,
+    totalItems:selectedItems.length,
+    totalQty:selectedItems.reduce((s,i)=>s+i.quantity,0),
+    status:"raised",
+    remarks:document.getElementById("orderRemarks").value,
+    reqDate:document.getElementById("orderReqDate").value,
+    createdAt:new Date().toISOString(),
+    createdBy:currentUser.username,
+    createdByName:currentUser.name
+  };
+  appData.orders.push(order);
+  await saveOrders();
+  logActivity("order", `Order ${orderId} raised by ${currentUser.name} for ${loc?.name||rjCode} (${cat})`, "🛒");
+  closeModal("orderModal");
+  renderOrders(); renderDashboard();
+  showNotif(`Order ${orderId} raised successfully!`);
+}
+
+function viewOrder(orderId){
+  const o = appData.orders.find(x=>x.id===orderId);
+  if(!o) return;
+  const canAction = currentUser.role==="warehouse"||currentUser.role==="admin";
+  document.getElementById("orderViewBody").innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div><label style="font-size:11px;font-weight:700;color:#94a3b8">ORDER ID</label><p style="font-size:15px;font-weight:700">${o.id}</p></div>
+      <div><label style="font-size:11px;font-weight:700;color:#94a3b8">STATUS</label><p><span class="badge badge-${o.status}">${o.status.toUpperCase()}</span></p></div>
+      <div><label style="font-size:11px;font-weight:700;color:#94a3b8">LOCATION</label><p>${o.locationName}</p></div>
+      <div><label style="font-size:11px;font-weight:700;color:#94a3b8">RJ CODE</label><p>${o.rjCode}</p></div>
+      <div><label style="font-size:11px;font-weight:700;color:#94a3b8">CATEGORY</label><p><span class="badge badge-${(o.category||"").toLowerCase()}">${o.category}</span></p></div>
+      <div><label style="font-size:11px;font-weight:700;color:#94a3b8">CREATED BY</label><p>${o.createdByName||o.createdBy}</p></div>
+      <div><label style="font-size:11px;font-weight:700;color:#94a3b8">DATE</label><p>${new Date(o.createdAt).toLocaleString("en-IN")}</p></div>
+      <div><label style="font-size:11px;font-weight:700;color:#94a3b8">REQUIRED BY</label><p>${o.reqDate||"Not specified"}</p></div>
+      ${o.remarks?`<div style="grid-column:span 2"><label style="font-size:11px;font-weight:700;color:#94a3b8">REMARKS</label><p>${o.remarks}</p></div>`:""}
+      ${o.rejectionReason?`<div style="grid-column:span 2"><label style="font-size:11px;font-weight:700;color:#94a3b8">REJECTION REASON</label><p style="color:#ef4444">${o.rejectionReason}</p></div>`:""}
+    </div>
+    <label style="font-size:12px;font-weight:700;color:#475569;margin-bottom:8px;display:block">ORDERED ITEMS</label>
+    <div class="order-items">
+      <div class="order-items-header"><span>SKU</span><span>Item Name</span><span>Quantity</span><span>Unit</span></div>
+      ${(o.items||[]).map(i=>`<div class="order-item-row"><span>${i.skuId}</span><span>${i.name}</span><span><strong>${i.quantity}</strong></span><span>${i.unit||""}</span></div>`).join("")}
+    </div>`;
+  let footer="";
+  if(canAction){
+    if(o.status==="raised"||o.status==="pending") footer=`<button class="btn btn-success" onclick='changeOrderStatus("${o.id}","approved");closeModal("orderViewModal")'>✅ Approve</button><button class="btn btn-danger" onclick='rejectOrder("${o.id}");closeModal("orderViewModal")' style="margin-left:8px">❌ Reject</button>`;
+    else if(o.status==="approved") footer=`<button class="btn btn-info" onclick='changeOrderStatus("${o.id}","dispatched");closeModal("orderViewModal")'>🚚 Mark Dispatched</button>`;
+    else if(o.status==="dispatched") footer=`<button class="btn btn-warning" onclick='changeOrderStatus("${o.id}","delivered");closeModal("orderViewModal")'>✅ Mark Delivered</button>`;
+  }
+  footer+=`<button class="btn btn-outline" onclick='closeModal("orderViewModal")' style="margin-left:8px">Close</button>`;
+  document.getElementById("orderViewFooter").innerHTML=footer;
+  openModal("orderViewModal");
+}
+
+function exportOrdersCSV(){
+  const orders = filterOrdersByRole(appData.orders);
+  if(!orders.length){ showNotif("No orders to export","error"); return; }
+  const rows = orders.map(o=>({ "Order ID":o.id,"RJ Code":o.rjCode,"Location":o.locationName,"Category":o.category,"Items":o.totalItems,"Total Qty":o.totalQty,"Status":o.status,"Created At":o.createdAt,"Created By":o.createdByName,"Remarks":o.remarks||"" }));
+  downloadCSV(rows,"orders_export.csv");
+}
+
+// ─── INVENTORY ─────────────────────────────────────────────────────────────────
+function renderInventory(){
+  const search=(document.getElementById("invSearch")?.value||"").toLowerCase();
+  const catF=document.getElementById("invCatFilter")?.value||"";
+  const stockF=document.getElementById("invStockFilter")?.value||"";
+  let inv=[...appData.inventory];
+  if(search) inv=inv.filter(i=>i.name?.toLowerCase().includes(search)||i.skuId?.toLowerCase().includes(search));
+  if(catF) inv=inv.filter(i=>i.category===catF);
+  if(stockF==="low") inv=inv.filter(i=>i.currentStock<=i.reorderLevel);
+  if(stockF==="ok") inv=inv.filter(i=>i.currentStock>i.reorderLevel);
+  const canEdit = currentUser?.role==="admin"||currentUser?.role==="warehouse";
+  const tbody=document.getElementById("inventoryBody");
+  if(!inv.length){ tbody.innerHTML=`<tr><td colspan="10"><div class="empty-state"><div class="icon">📦</div><p>No items found</p></div></td></tr>`; return; }
+  tbody.innerHTML=inv.map(i=>`<tr>
+    <td><strong>${i.skuId}</strong></td><td>${i.name}</td>
+    <td><span class="badge badge-${(i.category||"").toLowerCase()}">${i.category}</span></td>
+    <td>${i.subCategory||"—"}</td><td>${i.unit||"—"}</td>
+    <td>${i.openingStock||0}</td>
+    <td><strong style="color:${i.currentStock<=i.reorderLevel?"#ef4444":"#059669"}">${i.currentStock||0}</strong></td>
+    <td>${i.reorderLevel||0}</td>
+    <td><span class="badge badge-${i.currentStock<=i.reorderLevel?"low":"ok"}">${i.currentStock<=i.reorderLevel?"LOW":"OK"}</span></td>
+    <td>${canEdit?`<button class="btn btn-danger btn-sm" onclick='deleteItem("${i.skuId}")'>Delete</button>`:"—"}</td>
+  </tr>`).join("");
+}
+
+async function saveItem(){
+  const skuId=document.getElementById("itemSku").value.trim();
+  const name=document.getElementById("itemName").value.trim();
+  if(!skuId||!name){ showNotif("SKU ID and Name required","error"); return; }
+  if(appData.inventory.find(x=>x.skuId===skuId)){ showNotif("SKU ID already exists","error"); return; }
+  const item={
+    skuId, name,
+    category:document.getElementById("itemCat").value,
+    subCategory:document.getElementById("itemSubCat").value,
+    type:document.getElementById("itemType").value,
+    unit:document.getElementById("itemUnit").value||"Nos",
+    openingStock:parseInt(document.getElementById("itemOpening").value)||0,
+    currentStock:parseInt(document.getElementById("itemCurrent").value)||0,
+    reorderLevel:parseInt(document.getElementById("itemReorder").value)||0,
+    available:parseInt(document.getElementById("itemCurrent").value)||0
+  };
+  appData.inventory.push(item);
+  await fbSet("inventory",Object.fromEntries(appData.inventory.map((x,i)=>[`item${i}`,x])));
+  logActivity("inventory",`Item ${skuId} — ${name} added by ${currentUser.name}`,"📦");
+  closeModal("itemModal"); renderInventory(); renderDashboard();
+  showNotif("Item added successfully!");
+}
+
+async function deleteItem(skuId){
+  if(!confirm("Delete this item?")) return;
+  appData.inventory=appData.inventory.filter(i=>i.skuId!==skuId);
+  await fbSet("inventory",Object.fromEntries(appData.inventory.map((x,i)=>[`item${i}`,x])));
+  logActivity("inventory",`Item ${skuId} deleted by ${currentUser.name}`,"🗑️");
+  renderInventory(); renderDashboard();
+  showNotif("Item deleted.");
+}
+
+function openItemModal(){
+  ["itemSku","itemName","itemSubCat","itemType"].forEach(id=>document.getElementById(id).value="");
+  ["itemOpening","itemCurrent","itemReorder"].forEach(id=>document.getElementById(id).value="0");
+  document.getElementById("itemUnit").value="Nos";
+  openModal("itemModal");
+}
+
+function exportInvCSV(){
+  if(!appData.inventory.length){ showNotif("No inventory to export","error"); return; }
+  downloadCSV(appData.inventory,"inventory_export.csv");
+}
+
+// ─── LOCATIONS ─────────────────────────────────────────────────────────────────
+function renderLocations(){
+  const search=(document.getElementById("locSearch")?.value||"").toLowerCase();
+  const zoneF=document.getElementById("locZoneFilter")?.value||"";
+  const catF=document.getElementById("locCatFilter")?.value||"";
+  let locs=[...appData.locations];
+  if(search) locs=locs.filter(l=>l.name?.toLowerCase().includes(search)||l.rjCode?.toLowerCase().includes(search)||l.city?.toLowerCase().includes(search));
+  if(zoneF) locs=locs.filter(l=>l.zone===zoneF);
+  if(catF) locs=locs.filter(l=>l.category===catF);
+  const canEdit=currentUser?.role==="admin"||currentUser?.role==="warehouse";
+
+  // Populate zone filter
+  const zones=[...new Set(appData.locations.map(l=>l.zone).filter(Boolean))];
+  const zSel=document.getElementById("locZoneFilter");
+  const zVal=zSel.value;
+  zSel.innerHTML=`<option value="">All Zones</option>`+zones.map(z=>`<option ${z===zVal?"selected":""}>${z}</option>`).join("");
+
+  const tbody=document.getElementById("locationsBody");
+  if(!locs.length){ tbody.innerHTML=`<tr><td colspan="7"><div class="empty-state"><div class="icon">📍</div><p>No locations found</p></div></td></tr>`; return; }
+  tbody.innerHTML=locs.map(l=>`<tr>
+    <td><strong>${l.rjCode}</strong></td>
+    <td>${l.name}</td>
+    <td><span class="badge badge-ok">${l.category||"—"}</span></td>
+    <td>${l.zone||"—"}</td><td>${l.city||"—"}</td><td>${l.address||"—"}</td>
+    <td>${canEdit?`<button class="btn btn-danger btn-sm" onclick='deleteLoc("${l.id||l.rjCode}")'>Delete</button>`:"—"}</td>
+  </tr>`).join("");
+}
+
+async function saveLocation(){
+  const rjCode=document.getElementById("locRjCode").value.trim();
+  const name=document.getElementById("locName").value.trim();
+  if(!rjCode||!name){ showNotif("RJ Code and Name required","error"); return; }
+  if(appData.locations.find(l=>l.rjCode===rjCode)){ showNotif("RJ Code already exists","error"); return; }
+  const loc={
+    id:"L"+Date.now(), rjCode, name,
+    category:document.getElementById("locCat").value,
+    zone:document.getElementById("locZone").value,
+    city:document.getElementById("locCity").value,
+    address:document.getElementById("locAddress").value
+  };
+  appData.locations.push(loc);
+  await fbSet("locations",Object.fromEntries(appData.locations.map((x,i)=>[`loc${i}`,x])));
+  logActivity("location",`Location ${rjCode} — ${name} added by ${currentUser.name}`,"📍");
+  closeModal("locModal"); renderLocations(); renderDashboard();
+  showNotif("Location added!");
+}
+
+async function deleteLoc(id){
+  if(!confirm("Delete this location?")) return;
+  appData.locations=appData.locations.filter(l=>l.id!==id&&l.rjCode!==id);
+  await fbSet("locations",Object.fromEntries(appData.locations.map((x,i)=>[`loc${i}`,x])));
+  logActivity("location",`Location ${id} deleted by ${currentUser.name}`,"🗑️");
+  renderLocations(); renderDashboard();
+  showNotif("Location deleted.");
+}
+
+function openLocModal(){
+  ["locRjCode","locName","locZone","locCity","locAddress"].forEach(id=>document.getElementById(id).value="");
+  openModal("locModal");
+}
+
+function exportLocCSV(){
+  if(!appData.locations.length){ showNotif("No locations to export","error"); return; }
+  downloadCSV(appData.locations,"locations_export.csv");
+}
+
+// ─── ACTIVITY LOG ──────────────────────────────────────────────────────────────
+function renderActivity(){
+  const typeF=document.getElementById("actTypeFilter")?.value||"";
+  const dateF=document.getElementById("actDateFilter")?.value||"";
+  let acts=[...appData.activity].sort((a,b)=>new Date(b.ts)-new Date(a.ts));
+  if(typeF) acts=acts.filter(a=>a.type===typeF);
+  if(dateF) acts=acts.filter(a=>a.ts&&a.ts.startsWith(dateF));
+  const el=document.getElementById("activityList");
+  if(!acts.length){ el.innerHTML=`<div class="empty-state"><div class="icon">📋</div><p>No activity recorded yet</p></div>`; return; }
+  el.innerHTML=acts.slice(0,100).map(a=>`
+    <div class="activity-item">
+      <div class="activity-icon ${a.type}">${a.icon||"📝"}</div>
+      <div class="activity-text">
+        <strong>${a.message}</strong>
+        <p>${a.user||"System"} · ${a.role||""}</p>
+      </div>
+      <div class="activity-time">${a.ts?new Date(a.ts).toLocaleString("en-IN"):""}</div>
+    </div>`).join("");
+}
+
+function exportActivityCSV(){
+  if(!appData.activity.length){ showNotif("No activity to export","error"); return; }
+  const rows=appData.activity.map(a=>({ "Type":a.type,"Message":a.message,"User":a.user,"Role":a.role,"Time":a.ts }));
+  downloadCSV(rows,"activity_log.csv");
+}
+
+// ─── USERS ─────────────────────────────────────────────────────────────────────
+function renderUsers(){
+  if(currentUser?.role!=="admin") return;
+  const users=appData.users;
+  const tbody=document.getElementById("usersBody");
+  tbody.innerHTML=Object.entries(users).map(([u,d])=>`<tr>
+    <td><strong>${u}</strong></td><td>${d.name}</td>
+    <td><span class="badge role-${d.role}">${d.role}</span></td>
+    <td>${d.locationId||"All"}</td>
+    <td>${u!=="admin"?`<button class="btn btn-danger btn-sm" onclick='deleteUser("${u}")'>Delete</button>`:"—"}</td>
+  </tr>`).join("");
+}
+
+function openUserModal(){
+  ["uUsername","uDisplayName","uPassword"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("uRole").value="spoke";
+  toggleUserLocationField();
+  // Populate location dropdown
+  const sel=document.getElementById("uLocation");
+  sel.innerHTML=`<option value="">Select Location</option>`+appData.locations.map(l=>`<option value="${l.rjCode}">${l.rjCode} — ${l.name}</option>`).join("");
+  openModal("userModal");
+}
+
+function toggleUserLocationField(){
+  const role=document.getElementById("uRole").value;
+  document.getElementById("uLocationField").style.display=(role==="spoke"||role==="manager")?"block":"none";
+}
+
+async function saveUser(){
+  const u=document.getElementById("uUsername").value.trim();
+  const name=document.getElementById("uDisplayName").value.trim();
+  const pass=document.getElementById("uPassword").value.trim();
+  const role=document.getElementById("uRole").value;
+  const loc=document.getElementById("uLocation").value;
+  if(!u||!name||!pass){ showNotif("All fields required","error"); return; }
+  if(pass.length<6){ showNotif("Password must be at least 6 characters","error"); return; }
+  if(appData.users[u]){ showNotif("Username already exists","error"); return; }
+  appData.users[u]={ password:pass, role, name, locationId:loc };
+  await fbSet("users",appData.users);
+  logActivity("auth",`User ${u} (${role}) created by ${currentUser.name}`,"👤");
+  closeModal("userModal"); renderUsers();
+  showNotif("User created!");
+}
+
+async function deleteUser(u){
+  if(!confirm(`Delete user "${u}"?`)) return;
+  delete appData.users[u];
+  await fbSet("users",appData.users);
+  logActivity("auth",`User ${u} deleted by ${currentUser.name}`,"🗑️");
+  renderUsers();
+  showNotif("User deleted.");
+}
+
+// ─── IMPORT ────────────────────────────────────────────────────────────────────
+function importFile(input, type){
+  const file=input.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try {
+      let rows;
+      if(file.name.toLowerCase().endsWith(".csv")){
+        const lines=e.target.result.split("
+").filter(l=>l.trim());
+        const headers=lines[0].split(",").map(h=>h.replace(/"/g,"").trim());
+        rows=lines.slice(1).map(line=>{ const v=line.split(",").map(x=>x.replace(/"/g,"").trim()); const o={}; headers.forEach((h,i)=>o[h]=v[i]||""); return o; }).filter(r=>Object.values(r).some(v=>v));
+      } else {
+        const wb=XLSX.read(e.target.result,{type:"array"});
+        rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:""});
+      }
+      if(!rows.length){ showNotif("File is empty","error"); return; }
+      importBuffer={type, data:rows};
+      document.getElementById("importTitle").textContent=`Preview: ${rows.length} ${type} rows`;
+      const sample=rows[0];
+      document.getElementById("importBody").innerHTML=`
+        <p style="font-size:13px;margin-bottom:12px;color:#475569"><strong>${rows.length} rows</strong> detected. Importing will <strong>ADD</strong> to existing data.</p>
+        <p style="font-size:12px;font-weight:700;color:#94a3b8;margin-bottom:6px">DETECTED COLUMNS</p>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">${Object.keys(sample).map(k=>`<span style="background:#e0f2fe;color:#0369a1;padding:3px 10px;border-radius:20px;font-size:12px">${k}</span>`).join("")}</div>
+        <p style="font-size:12px;font-weight:700;color:#94a3b8;margin-bottom:6px">SAMPLE ROW</p>
+        <div style="background:#f8fafc;border-radius:8px;padding:12px;font-size:12px;font-family:monospace">${Object.entries(sample).map(([k,v])=>`<div><span style="color:#0d6e6e;font-weight:700">${k}:</span> ${v}</div>`).join("")}</div>`;
+      openModal("importModal");
+    } catch(err){ showNotif("Could not parse file: "+err.message,"error"); }
+  };
+  if(file.name.toLowerCase().endsWith(".csv")) reader.readAsText(file);
+  else reader.readAsArrayBuffer(file);
+  input.value="";
+}
+
+async function confirmImport(){
+  const {type, data}=importBuffer;
+  if(type==="inventory"){
+    const parsed=data.map((r,idx)=>({
+      skuId: r["SKU ID"]||r["skuId"]||r["sku"]||`IMP${Date.now()+idx}`,
+      name: r["Product Name"]||r["name"]||r["Item Name"]||"",
+      category: r["Category"]||r["category"]||"IT",
+      subCategory: r["Sub Category"]||r["subCategory"]||"",
+      type: r["Type"]||r["type"]||"",
+      unit: r["Unit"]||r["unit"]||"Nos",
+      reorderLevel: parseInt(r["Reorder Level"]||r["reorderLevel"]||0),
+      openingStock: parseInt(r["Opening Stock"]||r["openingStock"]||0),
+      currentStock: parseInt(r["Current Stock"]||r["currentStock"]||0),
+      available: parseInt(r["Available"]||r["available"]||r["Current Stock"]||0)
+    })).filter(i=>i.name);
+    if(!parsed.length){ showNotif("No valid rows found","error"); return; }
+    appData.inventory=[...appData.inventory, ...parsed];
+    await fbSet("inventory",Object.fromEntries(appData.inventory.map((x,i)=>[`item${i}`,x])));
+    logActivity("inventory",`${parsed.length} inventory items imported by ${currentUser.name}`,"📥");
+    renderInventory(); renderDashboard();
+    showNotif(`${parsed.length} items imported!`);
+  } else {
+    const parsed=data.map((r,idx)=>({
+      id: `L${Date.now()+idx}`,
+      rjCode: r["RJ Code"]||r["rjCode"]||r["Code"]||"",
+      name: r["Location Name"]||r["name"]||r["Facility Name"]||"",
+      category: r["Category"]||r["category"]||r["Type"]||"PHC",
+      zone: r["Zone"]||r["zone"]||"",
+      city: r["City"]||r["city"]||r["District"]||"",
+      address: r["Address"]||r["address"]||""
+    })).filter(l=>l.name||l.rjCode);
+    if(!parsed.length){ showNotif("No valid rows found","error"); return; }
+    appData.locations=[...appData.locations, ...parsed];
+    await fbSet("locations",Object.fromEntries(appData.locations.map((x,i)=>[`loc${i}`,x])));
+    logActivity("location",`${parsed.length} locations imported by ${currentUser.name}`,"📥");
+    renderLocations(); renderDashboard();
+    showNotif(`${parsed.length} locations imported!`);
+  }
+  closeModal("importModal");
+}
+
+// ─── MODAL HELPERS ─────────────────────────────────────────────────────────────
+function openModal(id){ document.getElementById(id).classList.add("show"); }
+function closeModal(id){ document.getElementById(id).classList.remove("show"); }
+
+// ─── CSV DOWNLOAD ──────────────────────────────────────────────────────────────
+function downloadCSV(data, filename){
+  if(!data.length) return;
+  const headers=Object.keys(data[0]);
+  const csv=[headers.join(","), ...data.map(r=>headers.map(h=>`"${(r[h]||"").toString().replace(/"/g,'""')}"`).join(","))].join("
+");
+  const a=Object.assign(document.createElement("a"),{ href:URL.createObjectURL(new Blob([csv],{type:"text/csv"})), download:filename });
+  a.click();
+  showNotif(`${filename} downloaded!`);
+}
+
+// ─── KEYBOARD ESC ──────────────────────────────────────────────────────────────
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") document.querySelectorAll(".modal-overlay.show").forEach(m=>m.classList.remove("show")); });
+
+// ─── LOGIN ON ENTER ────────────────────────────────────────────────────────────
+document.addEventListener("DOMContentLoaded",()=>{
+  document.getElementById("loginPass").addEventListener("keydown",e=>{ if(e.key==="Enter") doLogin(); });
+  document.getElementById("loginUser").addEventListener("keydown",e=>{ if(e.key==="Enter") doLogin(); });
+});
+</script>
+</body>
+</html>
